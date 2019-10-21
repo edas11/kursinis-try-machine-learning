@@ -23,13 +23,14 @@ sql_create_parameters_table = """
  
 sql_create_density_table = """
     CREATE TABLE IF NOT EXISTS density_dynamics (
+        propogation_id integer,
         params_id integer,
         time real,
         density_index integer,
         real_density real,
         imaginary_density real,
         FOREIGN KEY (params_id) REFERENCES propagation_parameters (params_id),
-        PRIMARY KEY (params_id, time, density_index)
+        PRIMARY KEY (propogation_id, params_id, time, density_index)
     );
 """
 
