@@ -1,6 +1,6 @@
 import sqlite3
 from sqlite3 import Error
-from db import create_connection, execute_sql
+from db import database
 
 # J - Rezonancine saveika (cm^-1)
 # T - Temperatura (K)
@@ -20,24 +20,34 @@ sql_create_parameters_table = """
         UNIQUE(delta_e, J, lambda, gamma, T)
     );
 """
+
+sql_create_propagation_table = """
+    CREATE TABLE IF NOT EXISTS propagation (
+        propagation_id integer PRIMARY KEY AUTOINCREMENT ,
+        params_id integer,
+        initial_cond_id integer,
+        method text,
+        FOREIGN KEY (params_id) REFERENCES propagation_parameters (params_id)
+    );
+"""
  
 sql_create_density_table = """
     CREATE TABLE IF NOT EXISTS density_dynamics (
-        propogation_id integer,
-        params_id integer,
+        propagation_id integer,
         time real,
         density_index integer,
         real_density real,
         imaginary_density real,
-        FOREIGN KEY (params_id) REFERENCES propagation_parameters (params_id),
-        PRIMARY KEY (propogation_id, params_id, time, density_index)
+        FOREIGN KEY (propagation_id) REFERENCES density_dynamics (propagation_id),
+        PRIMARY KEY (propagation_id, time, density_index)
     );
 """
 
 def main():
-    connection = create_connection()
-    execute_sql(connection, sql_create_parameters_table)
-    execute_sql(connection, sql_create_density_table)
+    db = database('density.db')
+    db.execute_sql(sql_create_parameters_table)
+    db.execute_sql(sql_create_propagation_table)
+    db.execute_sql(sql_create_density_table)
  
 if __name__ == '__main__':
     main()
