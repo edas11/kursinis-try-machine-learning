@@ -27,7 +27,8 @@ sql_create_propagation_table = """
         params_id integer,
         initial_cond_id integer,
         method text,
-        FOREIGN KEY (params_id) REFERENCES propagation_parameters (params_id)
+        FOREIGN KEY (params_id) REFERENCES propagation_parameters (params_id),
+        UNIQUE(params_id, initial_cond_id, method)
     );
 """
  

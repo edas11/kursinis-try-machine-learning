@@ -2,7 +2,7 @@ import sqlite3
 from sqlite3 import Error
 
 class database:
-    def __init__(self, db_file = 'data.db'):
+    def __init__(self, db_file = 'test.db'):
         self.db_file = db_file
         self.connection = self.create_connection()
 

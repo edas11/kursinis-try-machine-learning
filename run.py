@@ -5,6 +5,7 @@ from config import config
 from db import database
 import time
 import itertools
+import datetime
 
 class Runner:
 	select_params_sql = 'select params_id from propagation_parameters where delta_e = ? and J = ? and lambda = ? and gamma = ? and T = ?'
@@ -28,22 +29,27 @@ class Runner:
 
 	def propagateForAllParameters(self):
 		for i, row in self.propagationParameters.iterrows():
-			print('%i. Starting %s' % (i, tuple(row)))
-			start = time.time()
-			result = os.system(self.propagateCommandFormat % tuple(row))
-			if result == 0:
-				print('Propagation success, elapsed %f, starting insert to db' % (time.time() - start))
-				self.insertDataToDatabase(tuple(row))
-				os.remove('density.txt')
+			print('[%s] %i. Starting %s' % (datetime.datetime.now(), i, tuple(row)))
+			self.start = time.time()
+			paramsId, isNewEntry = self.insertParameters(tuple(row))
+			if isNewEntry:
+				self.propagate(tuple(row), paramsId)
 			else:
-				print('Propagation error')
-				self.errorRows = self.errorRows.append([row], ignore_index=True)
-			print('Finished, elaplsed %f' % (time.time() - start))
+				print('Parameters already in database, skipping.')
+			print('Finished, elaplsed %f' % (time.time() - self.start))
 				
+	def propagate(self, parametersRow, paramsId):
+		result = os.system(self.propagateCommandFormat % tuple(parametersRow))
+		if result == 0:
+			print('Propagation success, elapsed %f, starting insert to db' % (time.time() - self.start))
+			self.insertDataToDatabase(paramsId)
+			os.remove('density.txt')
+		else:
+			print('Propagation error')
+			self.errorRows = self.errorRows.append([parametersRow], ignore_index=True)
 
-	def insertDataToDatabase(self, parameters):
-		paramsId = self.insertParameters(parameters)
-		propagationId = self.insetPropagationEntry(paramsId)
+	def insertDataToDatabase(self, paramsId):
+		propagationId = self.insertPropagationEntry(paramsId)
 		self.db.connection.commit()
 		self.insertPropagationDataToDatabase(propagationId)
 
@@ -53,11 +59,13 @@ class Runner:
 		if firstRow == None:
 			c = self.db.execute_sql(self.insert_params_sql, parameters)
 			params_id = c.lastrowid
+			isNewEntry = True
 		else:
 			params_id = firstRow[0]
-		return params_id
+			isNewEntry = False
+		return (params_id, isNewEntry)
 
-	def insetPropagationEntry(self, paramsId):
+	def insertPropagationEntry(self, paramsId):
 		c = self.db.execute_sql(self.insert_propagation_sql, (paramsId, 1, 'HEOM'))
 		return c.lastrowid
 
@@ -73,10 +81,10 @@ class Runner:
 
 	def get_parameters(self):
 		params = [
-			[100, 200, 300, 400, 500],#delta_d
-			[100, 300],#J
-			[100, 200],#lambdaReorg
-			[100],#gamma
+			[50, 100, 200, 400],#delta_d
+			[50, 100, 200, 400],#J
+			[50, 100, 200, 400],#lambdaReorg
+			[50, 100, 200, 300],#gamma
 			[200, 300]#T
 		]
 		return itertools.product(*params)
