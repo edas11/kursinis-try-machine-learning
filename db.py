@@ -18,7 +18,10 @@ class database:
     def execute_sql(self, sql, data = ()):
         try:
             c = self.connection.cursor()
-            c.execute(sql, data)
+            if isinstance(data, list):
+                c.executemany(sql, data)
+            else:
+                c.execute(sql, data)
             return c
         except Error as e:
             print(e)

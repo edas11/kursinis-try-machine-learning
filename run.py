@@ -9,9 +9,10 @@ import datetime
 
 class Runner:
 	select_params_sql = 'select params_id from propagation_parameters where delta_e = ? and J = ? and lambda = ? and gamma = ? and T = ?'
+	select_propagation_sql = 'select propagation_id from propagation where params_id = ? and method = ?'
 	insert_params_sql = 'insert into propagation_parameters (delta_e, J, lambda, gamma, T) values(?, ?, ?, ?, ?)'
 	insert_propagation_sql = 'insert into propagation (params_id, initial_cond_id, method) values(?, ?, ?)'
-	insert_density_sql = 'insert into density_dynamics values (?, ?, ? ,? ,?), (?, ? ,? ,? ,?), (?, ? ,? ,? ,?), (?, ? ,? ,? ,?)'
+	insert_density_sql = 'insert into density_dynamics values (?, ?, ? ,? ,?)'
 	rootDir = os.getcwd()
 	db = database('density.db')
 
@@ -25,15 +26,15 @@ class Runner:
 		os.chdir(config['methods'][self.method]['rootDir'])
 		self.propagateForAllParameters()
 		os.chdir(self.rootDir)
-		self.errorRows.to_csv('error_%s.csv' % time.time(), index=False)
+		self.errorRows.to_csv('error_%s_%s.csv' % (self.method, time.time()), index=False)
 
 	def propagateForAllParameters(self):
 		for i, row in self.propagationParameters.iterrows():
 			print('[%s] %i. Starting %s' % (datetime.datetime.now(), i, tuple(row)))
 			self.start = time.time()
-			paramsId, isNewEntry = self.insertParameters(tuple(row))
-			if isNewEntry:
-				self.propagate(tuple(row), paramsId)
+			paramsId = self.insertParameters(tuple(row))
+			if self.hasNotBeenPropagated(paramsId):
+				self.propagate(row, paramsId)
 			else:
 				print('Parameters already in database, skipping.')
 			print('Finished, elaplsed %f' % (time.time() - self.start))
@@ -47,6 +48,14 @@ class Runner:
 		else:
 			print('Propagation error')
 			self.errorRows = self.errorRows.append([parametersRow], ignore_index=True)
+	
+	def hasNotBeenPropagated(self, paramsId):
+		c = self.db.execute_sql(self.select_propagation_sql, (paramsId, self.method))
+		firstRow = c.fetchone()
+		if firstRow == None:
+			return True
+		else:
+			return False
 
 	def insertDataToDatabase(self, paramsId):
 		propagationId = self.insertPropagationEntry(paramsId)
@@ -59,11 +68,9 @@ class Runner:
 		if firstRow == None:
 			c = self.db.execute_sql(self.insert_params_sql, parameters)
 			params_id = c.lastrowid
-			isNewEntry = True
 		else:
 			params_id = firstRow[0]
-			isNewEntry = False
-		return (params_id, isNewEntry)
+		return params_id
 
 	def insertPropagationEntry(self, paramsId):
 		c = self.db.execute_sql(self.insert_propagation_sql, (paramsId, 1, self.method))
@@ -72,10 +79,14 @@ class Runner:
 	def insertPropagationDataToDatabase(self, propagationId):
 		data = pd.read_csv("density.txt", sep = "\t", index_col = 't')
 		for t, row in data.iterrows():
-			density_values =    (propagationId, t, 1, row['Re(rho11)'], row['Im(rho11)'],
-								propagationId, t, 2, row['Re(rho12)'], row['Im(rho12)'],
-								propagationId, t, 4, row['Re(rho22)'], row['Im(rho22)'],
-								propagationId, t, 3, row['Re(rho21)'], row['Im(rho21)'])
+			if self.method == 'Forster':
+				density_values = [(propagationId, t, 1, row['rho11'], 0),
+									(propagationId, t, 4, row['rho22'],0)]
+			else:
+				density_values =    [(propagationId, t, 1, row['Re(rho11)'], row['Im(rho11)']),
+									(propagationId, t, 2, row['Re(rho12)'], row['Im(rho12)']),
+									(propagationId, t, 4, row['Re(rho22)'], row['Im(rho22)']),
+									(propagationId, t, 3, row['Re(rho21)'], row['Im(rho21)'])]
 			self.db.execute_sql(self.insert_density_sql, density_values)
 		self.db.connection.commit()
 
