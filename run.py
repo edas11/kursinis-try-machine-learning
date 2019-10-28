@@ -12,20 +12,20 @@ class Runner:
 	insert_params_sql = 'insert into propagation_parameters (delta_e, J, lambda, gamma, T) values(?, ?, ?, ?, ?)'
 	insert_propagation_sql = 'insert into propagation (params_id, initial_cond_id, method) values(?, ?, ?)'
 	insert_density_sql = 'insert into density_dynamics values (?, ?, ? ,? ,?), (?, ? ,? ,? ,?), (?, ? ,? ,? ,?), (?, ? ,? ,? ,?)'
-	propagateCommandFormat = 'matlab -nodisplay -noFigureWindows -nosplash -nodesktop -wait -r "try; runHEOM(%f, %f, %f, %f, %f, 1, 1); catch E; quit(1); end; quit(0)"'
 	rootDir = os.getcwd()
 	db = database('density.db')
 
-	def __init__(self):
+	def __init__(self, method):
 		#self.propagationParameters = pd.read_csv("parameters.csv", sep = ",", index_col = False, dtype = 'float64')
+		self.method = method
 		self.propagationParameters = pd.DataFrame(self.get_parameters())
 		self.errorRows = pd.DataFrame(columns=['delta_e', 'J', 'lambda', 'gamma', 'T'])
 
 	def run(self):
-		os.chdir(config['methods']['HEOM']['rootDir'])
+		os.chdir(config['methods'][self.method]['rootDir'])
 		self.propagateForAllParameters()
 		os.chdir(self.rootDir)
-		self.errorRows.to_csv('error.csv', index=False)
+		self.errorRows.to_csv('error_%s.csv' % time.time(), index=False)
 
 	def propagateForAllParameters(self):
 		for i, row in self.propagationParameters.iterrows():
@@ -39,7 +39,7 @@ class Runner:
 			print('Finished, elaplsed %f' % (time.time() - self.start))
 				
 	def propagate(self, parametersRow, paramsId):
-		result = os.system(self.propagateCommandFormat % tuple(parametersRow))
+		result = os.system(config['methods'][self.method]['command'] % tuple(parametersRow))
 		if result == 0:
 			print('Propagation success, elapsed %f, starting insert to db' % (time.time() - self.start))
 			self.insertDataToDatabase(paramsId)
@@ -66,7 +66,7 @@ class Runner:
 		return (params_id, isNewEntry)
 
 	def insertPropagationEntry(self, paramsId):
-		c = self.db.execute_sql(self.insert_propagation_sql, (paramsId, 1, 'HEOM'))
+		c = self.db.execute_sql(self.insert_propagation_sql, (paramsId, 1, self.method))
 		return c.lastrowid
 
 	def insertPropagationDataToDatabase(self, propagationId):
@@ -90,4 +90,6 @@ class Runner:
 		return itertools.product(*params)
 
 if __name__ == '__main__':
-	Runner().run()
+	methods = ('HEOM', 'Redfield', 'Forster')
+	methodNr = int(input('Choose method:\n1. %s\n2. %s\n3. %s\n' % methods))
+	Runner(methods[methodNr - 1]).run()

@@ -6,9 +6,9 @@ import numpy as np
 select_density_sql = 'select time, real_density, imaginary_density from density_dynamics as dd inner join propagation as p on dd.propagation_id = p.propagation_id inner join propagation_parameters as pp on p.params_id = pp.params_id where delta_e = ? and J = ? and lambda = ? and gamma = ? and T = ? and density_index = ?'
 
 def main():
-    delta_e = 200
-    J = 100
-    lambdaReorg = 100
+    delta_e = 100
+    J = 200
+    lambdaReorg = 50
     gamma = 100
     T = 300
 
