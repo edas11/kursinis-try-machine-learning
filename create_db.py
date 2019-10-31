@@ -23,7 +23,7 @@ sql_create_parameters_table = """
 
 sql_create_propagation_table = """
     CREATE TABLE IF NOT EXISTS propagation (
-        propagation_id integer PRIMARY KEY AUTOINCREMENT ,
+        propagation_id integer PRIMARY KEY AUTOINCREMENT,
         params_id integer,
         initial_cond_id integer,
         method text,
@@ -31,7 +31,15 @@ sql_create_propagation_table = """
         UNIQUE(params_id, initial_cond_id, method)
     );
 """
- 
+
+sql_create_errors_table = """
+    CREATE TABLE IF NOT EXISTS errors (
+        propagation_id integer PRIMARY KEY,
+        error real,
+        FOREIGN KEY (propagation_id) REFERENCES propagation (propagation_id)
+    );
+"""
+
 sql_create_density_table = """
     CREATE TABLE IF NOT EXISTS density_dynamics (
         propagation_id integer,
@@ -45,9 +53,10 @@ sql_create_density_table = """
 """
 
 def main():
-    db = database('density.db')
+    db = database('test.db')
     db.execute_sql(sql_create_parameters_table)
     db.execute_sql(sql_create_propagation_table)
+    db.execute_sql(sql_create_errors_table)
     db.execute_sql(sql_create_density_table)
  
 if __name__ == '__main__':

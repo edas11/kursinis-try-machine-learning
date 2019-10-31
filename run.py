@@ -2,25 +2,20 @@ import sys
 import os
 import pandas as pd
 from config import config
-from db import database
+from density_db import density_database
 import time
 import itertools
 import datetime
 
 class Runner:
-	select_params_sql = 'select params_id from propagation_parameters where delta_e = ? and J = ? and lambda = ? and gamma = ? and T = ?'
-	select_propagation_sql = 'select propagation_id from propagation where params_id = ? and method = ?'
-	insert_params_sql = 'insert into propagation_parameters (delta_e, J, lambda, gamma, T) values(?, ?, ?, ?, ?)'
-	insert_propagation_sql = 'insert into propagation (params_id, initial_cond_id, method) values(?, ?, ?)'
-	insert_density_sql = 'insert into density_dynamics values (?, ?, ? ,? ,?)'
-	rootDir = os.getcwd()
-	db = database('density.db')
 
 	def __init__(self, method):
 		#self.propagationParameters = pd.read_csv("parameters.csv", sep = ",", index_col = False, dtype = 'float64')
 		self.method = method
 		self.propagationParameters = pd.DataFrame(self.get_parameters())
 		self.errorRows = pd.DataFrame(columns=['delta_e', 'J', 'lambda', 'gamma', 'T'])
+		self.db = density_database('test.db')
+		self.rootDir = os.getcwd()
 
 	def run(self):
 		os.chdir(config['methods'][self.method]['rootDir'])
@@ -50,31 +45,24 @@ class Runner:
 			self.errorRows = self.errorRows.append([parametersRow], ignore_index=True)
 	
 	def hasNotBeenPropagated(self, paramsId):
-		c = self.db.execute_sql(self.select_propagation_sql, (paramsId, self.method))
-		firstRow = c.fetchone()
+		firstRow = self.db.selectPropagation(paramsId, self.method).fetchone()
 		if firstRow == None:
 			return True
 		else:
 			return False
 
 	def insertDataToDatabase(self, paramsId):
-		propagationId = self.insertPropagationEntry(paramsId)
-		self.db.connection.commit()
+		propagationId = self.db.insertPropagationEntry(paramsId, self.method)
+		self.db.db.connection.commit()
 		self.insertPropagationDataToDatabase(propagationId)
 
 	def insertParameters(self, parameters):
-		c = self.db.execute_sql(self.select_params_sql, parameters)
-		firstRow = c.fetchone()
+		firstRow = self.db.selectParameters(parameters).fetchone()
 		if firstRow == None:
-			c = self.db.execute_sql(self.insert_params_sql, parameters)
-			params_id = c.lastrowid
+			params_id = self.db.insertParameters(parameters)
 		else:
 			params_id = firstRow[0]
 		return params_id
-
-	def insertPropagationEntry(self, paramsId):
-		c = self.db.execute_sql(self.insert_propagation_sql, (paramsId, 1, self.method))
-		return c.lastrowid
 
 	def insertPropagationDataToDatabase(self, propagationId):
 		data = pd.read_csv("density.txt", sep = "\t", index_col = 't')
@@ -87,8 +75,8 @@ class Runner:
 									(propagationId, t, 2, row['Re(rho12)'], row['Im(rho12)']),
 									(propagationId, t, 4, row['Re(rho22)'], row['Im(rho22)']),
 									(propagationId, t, 3, row['Re(rho21)'], row['Im(rho21)'])]
-			self.db.execute_sql(self.insert_density_sql, density_values)
-		self.db.connection.commit()
+			self.db.insertDensity(density_values)
+		self.db.db.connection.commit()
 
 	def get_parameters(self):
 		params = [
@@ -102,5 +90,6 @@ class Runner:
 
 if __name__ == '__main__':
 	methods = ('HEOM', 'Redfield', 'Forster')
-	methodNr = int(input('Choose method:\n1. %s\n2. %s\n3. %s\n' % methods))
+	#methodNr = int(input('Choose method:\n1. %s\n2. %s\n3. %s\n' % methods))
+	methodNr = int(sys.argv[1])
 	Runner(methods[methodNr - 1]).run()
