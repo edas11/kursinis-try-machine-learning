@@ -1,5 +1,7 @@
 from density_db import density_database
 import numpy as np
+from tqdm import tqdm
+import math
 
 class Error:
 
@@ -7,28 +9,35 @@ class Error:
         self.method = method
         self.db = density_database('density.db')
 
-    def calcError(self):
+    def calculateErrorAndSave(self):
         propagations = self.db.selectMultiplePropagations(self.method).fetchall()
-        for approxId, exactId in propagations:
-            self.error(approxId, exactId)
-            #self.db.selectDensityByPropagationId(propagation[''], 1)
+        for approxId, exactId in tqdm(propagations):
+            error = self.calculateError(approxId, exactId)
+            self.db.insertError(approxId, error)
+            self.db.db.connection.commit()
 
-    def error(self, approxId, exactId):
+    def calculateError(self, approxId, exactId):
         culmError = 0
         for i in range(2):
             for j in range(2):
                 index = i * 2 + j + 1
-                c = self.db.selectDensityByPropagationId(approxId, index)
-                densityApprox = np.array(c.fetchall())
-                numOfPoints = len(densityApprox)
-                c = self.db.selectDensityByPropagationId(exactId, index)
-                densityExact =  np.array(c.fetchall())
-
-                difference = densityApprox[:, 1] + 1j * densityApprox[:, 2] - densityExact[:, 1] - 1j * densityExact[:, 2]
+                densityApprox = self.getDensity(approxId, index)
+                densityExact = self.getDensity(exactId, index)
+                equilibrationTime = int(self.getEquilibrationTime(densityExact))#get index, look at all i and j
+                difference = densityApprox[equilibrationTime:, 1] + 1j * densityApprox[equilibrationTime:, 2] - densityExact[equilibrationTime:, 1] - 1j * densityExact[equilibrationTime:, 2]
                 culmError += np.sum(np.square(np.absolute(difference)))
-        print(numOfPoints)
-        print(culmError/(4 * numOfPoints))
-        exit()
+        return math.sqrt(culmError)/(4 * equilibrationTime)
+    
+    def getDensity(self, propagationId, index):
+        c = self.db.selectDensityByPropagationId(propagationId, index)
+        return np.array(c.fetchall())
+
+    def getEquilibrationTime(self, density):
+        last = density[-1, :]
+        for row in density:
+            deviation = np.absolute(row[1] + 1j * row[2] - last[1] - 1j * last[2])
+            if deviation < 10**-3:
+                return row[0]
 
 if __name__ == '__main__':
-    Error('Redfield').calcError()
+    Error('Redfield').calculateErrorAndSave()

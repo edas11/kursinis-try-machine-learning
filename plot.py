@@ -4,14 +4,14 @@ from density_db import density_database
 import numpy as np
 
 def main():
-    delta_e = 50
+    delta_e = 100
     J = 50
-    lambdaReorg = 50
-    gamma = 50
+    lambdaReorg = 100
+    gamma = 100
     T = 300
     method = ['HEOM', 'Redfield', 'Forster'][1]
 
-    db = density_database('test.db')
+    db = density_database('density.db')
     fig, axs = plt.subplots(2, 2)
     for i in range(2):
         for j in range(2):
