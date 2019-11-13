@@ -18,14 +18,19 @@ class Error:
 
     def calculateError(self, approxId, exactId):
         culmError = 0
+        densities = []
+        equilibrationTimes = []
         for i in range(2):
             for j in range(2):
                 index = i * 2 + j + 1
-                densityApprox = self.getDensity(approxId, index)
                 densityExact = self.getDensity(exactId, index)
-                equilibrationTime = int(self.getEquilibrationTime(densityExact))#get index, look at all i and j
-                difference = densityApprox[equilibrationTime:, 1] + 1j * densityApprox[equilibrationTime:, 2] - densityExact[equilibrationTime:, 1] - 1j * densityExact[equilibrationTime:, 2]
-                culmError += np.sum(np.square(np.absolute(difference)))
+                densities.append((self.getDensity(approxId, index), densityExact))
+                equilibrationTimes.append(int(self.getEquilibrationTime(densityExact)))#get index,
+        equilibrationTime = max(equilibrationTimes)
+
+        for densityApprox, densityExact in densities:
+            difference = densityApprox[:equilibrationTime, 1] + 1j * densityApprox[:equilibrationTime, 2] - densityExact[:equilibrationTime, 1] - 1j * densityExact[:equilibrationTime, 2]
+            culmError += np.sum(np.square(np.absolute(difference)))
         return math.sqrt(culmError)/(4 * equilibrationTime)
     
     def getDensity(self, propagationId, index):

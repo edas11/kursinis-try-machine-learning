@@ -14,7 +14,7 @@ class Runner:
 		self.method = method
 		self.propagationParameters = pd.DataFrame(self.get_parameters())
 		self.errorRows = pd.DataFrame(columns=['delta_e', 'J', 'lambda', 'gamma', 'T'])
-		self.db = density_database('test.db')
+		self.db = density_database('density.db')
 		self.rootDir = os.getcwd()
 
 	def run(self):

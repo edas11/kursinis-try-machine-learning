@@ -3,7 +3,7 @@ import matplotlib
 from density_db import density_database
 
 def main():
-    paramNames = ('J', 'delta_e', 'lambda', 'gamma', 'T')
+    paramNames = ('lambda', 'J', 'delta_e', 'gamma', 'T')
     params = (100, 100, 100, 300)
     db = density_database('density.db')
     c = db.selectErrorsForParam(paramNames, params)
