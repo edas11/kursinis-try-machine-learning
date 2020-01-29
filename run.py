@@ -25,7 +25,7 @@ class Runner:
 
 	def propagateForAllParameters(self):
 		for i, row in self.propagationParameters.iterrows():
-			print('[%s] %i. Starting %s' % (datetime.datetime.now(), i, tuple(row)))
+			print('[%s] %i. Starting %s, %s' % (datetime.datetime.now(), i, tuple(row), self.method))
 			self.start = time.time()
 			paramsId = self.insertParameters(tuple(row))
 			if self.hasNotBeenPropagated(paramsId):
@@ -82,8 +82,8 @@ class Runner:
 		params = [
 			[50, 100, 200, 400],#delta_d
 			[50, 100, 200, 400],#J
-			[50, 100, 200, 400],#lambdaReorg
-			[50, 100, 200, 300],#gamma
+			[10, 25, 50, 100, 200, 400],#lambdaReorg
+			[10, 25, 50, 100, 200, 300],#gamma
 			[200, 300]#T
 		]
 		return itertools.product(*params)
@@ -92,4 +92,4 @@ if __name__ == '__main__':
 	methods = ('HEOM', 'Redfield', 'Forster')
 	#methodNr = int(input('Choose method:\n1. %s\n2. %s\n3. %s\n' % methods))
 	methodNr = int(sys.argv[1])
-	Runner(methods[methodNr - 1]).run()
+	Runner(methods[methodNr]).run()
